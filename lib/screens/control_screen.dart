@@ -31,29 +31,46 @@ class _ControlScreenState extends State<ControlScreen>
 
     beamController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3), // 충분히 길게
+      duration: const Duration(seconds: 2), // 충분히 길게
     );
   }
 
-  Future<void> triggerBeam(GlobalKey targetKey) async {
-    if (beamController.isAnimating) {
-      beamController.stop();
-    }
-
-    final box = targetKey.currentContext!.findRenderObject() as RenderBox;
-
-    final pos = box.localToGlobal(Offset.zero);
-    final size = box.size;
-
-    beamTopRight = Offset(pos.dx + size.width, pos.dy);
-    beamBottomLeft = Offset(pos.dx, pos.dy + size.height);
-
-    setState(() {});
-
-    beamController
-      ..reset()
-      ..forward();
+Future<void> triggerBeam(GlobalKey targetKey) async {
+  if (beamController.isAnimating) {
+    beamController.stop();
   }
+
+  final renderBox =
+      targetKey.currentContext!.findRenderObject() as RenderBox;
+
+  final overlayBox =
+      Overlay.of(context).context.findRenderObject() as RenderBox;
+
+  final local = overlayBox.globalToLocal(
+    renderBox.localToGlobal(Offset.zero),
+  );
+
+  final size = renderBox.size;
+
+  // 0.5px~1.5px 미세 보정 (Flutter subpixel rounding 대응)
+  const double yFix = -2; // 세부 조정
+
+  beamTopRight = Offset(
+    local.dx + size.width,
+    local.dy + yFix,
+  );
+
+  beamBottomLeft = Offset(
+    local.dx,
+    local.dy + size.height + yFix,
+  );
+
+  setState(() {});
+
+  beamController
+    ..reset()
+    ..forward();
+}
 
   @override
   void dispose() {
