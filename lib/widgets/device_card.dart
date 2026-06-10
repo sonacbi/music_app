@@ -7,6 +7,7 @@ class DeviceCard extends StatelessWidget {
   final String title;
   final bool connected;
   final VoidCallback onTap;
+  final GlobalKey buttonKey;
 
   const DeviceCard({
     super.key,
@@ -14,6 +15,7 @@ class DeviceCard extends StatelessWidget {
     required this.title,
     required this.connected,
     required this.onTap,
+    required this.buttonKey,
   });
 
   @override
@@ -21,6 +23,7 @@ class DeviceCard extends StatelessWidget {
     return Column(
       children: [
         DoubleBorderButton(
+          key: buttonKey,
           width: 120,
           height: 120,
           onTap: onTap,
@@ -55,7 +58,7 @@ class DeviceCard extends StatelessWidget {
               style: const TextStyle(color: Colors.white70),
             ),
           ],
-        )
+        ),
       ],
     );
   }
