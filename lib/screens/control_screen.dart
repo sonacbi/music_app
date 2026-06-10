@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 
 import '../theme/app_colors.dart';
 import '../widgets/debug_panel.dart';
 import '../widgets/device_card.dart';
 import '../widgets/transport_panel.dart';
 import '../widgets/beam_overlay.dart';
+import '../widgets/music_visualizer.dart';
 
 class ControlScreen extends StatefulWidget {
   const ControlScreen({super.key});
@@ -12,6 +14,7 @@ class ControlScreen extends StatefulWidget {
   @override
   State<ControlScreen> createState() => _ControlScreenState();
 }
+
 
 class _ControlScreenState extends State<ControlScreen>
     with SingleTickerProviderStateMixin {
@@ -24,6 +27,7 @@ class _ControlScreenState extends State<ControlScreen>
 
   Offset? beamTopRight;
   Offset? beamBottomLeft;
+  TransportState transportState = TransportState.stop;
 
   @override
   void initState() {
@@ -121,9 +125,22 @@ Future<void> triggerBeam(GlobalKey targetKey) async {
                         ),
                       ],
                     ),
+                    const Spacer(),
+
+                    MusicVisualizer(state: transportState),
 
                     const Spacer(),
-                    const TransportPanel(),
+                    TransportPanel(
+                        onPlay: () {
+                            setState(() => transportState = TransportState.play);
+                        },
+                        onPause: () {
+                            setState(() => transportState = TransportState.pause);
+                        },
+                        onStop: () {
+                            setState(() => transportState = TransportState.stop);
+                        },
+                        ),
                     const Spacer(),
 
                     SwitchListTile(
