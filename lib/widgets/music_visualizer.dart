@@ -5,8 +5,13 @@ enum TransportState { play, pause, stop }
 
 class MusicVisualizer extends StatefulWidget {
   final TransportState state;
+  final bool disabled;
 
-  const MusicVisualizer({super.key, required this.state});
+  const MusicVisualizer({
+    super.key,
+    required this.state,
+    this.disabled = false,
+  });
 
   @override
   State<MusicVisualizer> createState() => _MusicVisualizerState();
@@ -64,6 +69,7 @@ class _MusicVisualizerState extends State<MusicVisualizer>
                 phases: _phases,
                 barCount: barCount,
                 state: widget.state,
+                disabled: widget.disabled,
               ),
               size: Size(
                 constraints.maxWidth,
@@ -84,6 +90,7 @@ class _WavePainter extends CustomPainter {
   final List<double> phases;
   final int barCount;
   final TransportState state;
+  final bool disabled;
 
   _WavePainter({
     required this.t,
@@ -92,6 +99,7 @@ class _WavePainter extends CustomPainter {
     required this.phases,
     required this.barCount,
     required this.state,
+    required this.disabled,
   });
 
   double _noise(int i, double t) {
@@ -101,6 +109,29 @@ class _WavePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (disabled) {
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: "NOT CONNECTED",
+        style: TextStyle(
+          color: Colors.white38,
+          fontSize: 18,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    textPainter.paint(
+      canvas,
+      Offset(
+        (size.width - textPainter.width) / 2,
+        (size.height - textPainter.height) / 2,
+      ),
+    );
+
+    return; // 여기서 그래프 완전 차단
+  }
     final time = DateTime.now().millisecondsSinceEpoch * 0.001;
 
     final paint = Paint()

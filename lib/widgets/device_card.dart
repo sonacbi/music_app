@@ -29,7 +29,6 @@ class DeviceCard extends StatelessWidget {
             key: buttonKey,
             width: 120,
             height: 120,
-            // onTap: onTap ?? () {},
             child: Icon(
               icon,
               color: Colors.white,

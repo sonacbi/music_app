@@ -7,6 +7,8 @@ import '../widgets/device_card.dart';
 import '../widgets/transport_panel.dart';
 import '../widgets/beam_overlay.dart';
 import '../widgets/music_visualizer.dart';
+import '../widgets/device_selector_popup.dart';
+import '../bluetooth/bluetooth_service.dart';
 
 class ControlScreen extends StatefulWidget {
   const ControlScreen({super.key});
@@ -14,7 +16,6 @@ class ControlScreen extends StatefulWidget {
   @override
   State<ControlScreen> createState() => _ControlScreenState();
 }
-
 
 class _ControlScreenState extends State<ControlScreen>
     with SingleTickerProviderStateMixin {
@@ -29,6 +30,12 @@ class _ControlScreenState extends State<ControlScreen>
   Offset? beamBottomLeft;
   TransportState transportState = TransportState.stop;
 
+  final BluetoothService bluetoothService = BluetoothService();
+  bool gamepadActive = false;
+
+  bool get isConnected =>
+    bluetoothService.currentStatus == BluetoothStatus.connected;
+    
   @override
   void initState() {
     super.initState();
@@ -39,42 +46,55 @@ class _ControlScreenState extends State<ControlScreen>
     );
   }
 
-Future<void> triggerBeam(GlobalKey targetKey) async {
-  if (beamController.isAnimating) {
-    beamController.stop();
+  Future<void> triggerBeam(GlobalKey targetKey) async {
+    if (beamController.isAnimating) {
+      beamController.stop();
+    }
+    if (targetKey.currentContext == null) return;
+    final renderBox = targetKey.currentContext!.findRenderObject() as RenderBox;
+
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    final local = overlayBox.globalToLocal(
+      renderBox.localToGlobal(Offset.zero),
+    );
+
+    final size = renderBox.size;
+
+    // 0.5px~1.5px 미세 보정 (Flutter subpixel rounding 대응)
+    const double yFix = -2; // 세부 조정
+
+    beamTopRight = Offset(local.dx + size.width, local.dy + yFix);
+
+    beamBottomLeft = Offset(local.dx, local.dy + size.height + yFix);
+
+    setState(() {});
+
+    beamController
+      ..reset()
+      ..forward();
   }
 
-  final renderBox =
-      targetKey.currentContext!.findRenderObject() as RenderBox;
+  void showDevicePopup() async {
+    final devices = await bluetoothService.getBondedDevices();
 
-  final overlayBox =
-      Overlay.of(context).context.findRenderObject() as RenderBox;
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return DeviceSelectorPopup(
+          devices: devices,
+          onSelect: (device) async {
+            await bluetoothService.connect(device);
 
-  final local = overlayBox.globalToLocal(
-    renderBox.localToGlobal(Offset.zero),
-  );
-
-  final size = renderBox.size;
-
-  // 0.5px~1.5px 미세 보정 (Flutter subpixel rounding 대응)
-  const double yFix = -2; // 세부 조정
-
-  beamTopRight = Offset(
-    local.dx + size.width,
-    local.dy + yFix,
-  );
-
-  beamBottomLeft = Offset(
-    local.dx,
-    local.dy + size.height + yFix,
-  );
-
-  setState(() {});
-
-  beamController
-    ..reset()
-    ..forward();
-}
+            setState(() {
+              debugMode = true;
+            });
+          },
+        );
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -92,10 +112,7 @@ Future<void> triggerBeam(GlobalKey targetKey) async {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.backgroundTop,
-                  AppColors.backgroundBottom
-                ],
+                colors: [AppColors.backgroundTop, AppColors.backgroundBottom],
               ),
             ),
 
@@ -106,41 +123,70 @@ Future<void> triggerBeam(GlobalKey targetKey) async {
                   children: [
                     const SizedBox(height: 20),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        DeviceCard(
-                          buttonKey: arduinoButtonKey,
-                          icon: Icons.memory,
-                          title: "Arduino",
-                          connected: true,
-                          onTap: () => triggerBeam(arduinoButtonKey),
-                        ),
-                        DeviceCard(
-                          buttonKey: gamepadButtonKey,
-                          icon: Icons.sports_esports,
-                          title: "Gamepad",
-                          connected: false,
-                          onTap: () => triggerBeam(gamepadButtonKey),
-                        ),
-                      ],
+                    StreamBuilder<BluetoothStatus>(
+                      stream: bluetoothService.statusStream,
+                      initialData: BluetoothStatus.disconnected,
+                      builder: (context, snapshot) {
+                        final arduinoStatus = snapshot.data!;
+
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // 🔵 Arduino = Bluetooth 상태
+                            DeviceCard(
+                              buttonKey: arduinoButtonKey,
+                              icon: Icons.memory,
+                              title: "Arduino",
+                              connected:
+                                  arduinoStatus == BluetoothStatus.connected,
+                              onTap: () async {
+                                triggerBeam(arduinoButtonKey);
+                                showDevicePopup();
+                              },
+                            ),
+
+                            // 🎮 Gamepad = 로컬 상태 (절대 Bluetooth 아님)
+                            DeviceCard(
+                              buttonKey: gamepadButtonKey,
+                              icon: Icons.sports_esports,
+                              title: "Gamepad",
+                              connected: gamepadActive,
+                              onTap: () {
+                                setState(() {
+                                  gamepadActive = !gamepadActive;
+                                });
+
+                                triggerBeam(gamepadButtonKey);
+                              },
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const Spacer(),
 
-                    MusicVisualizer(state: transportState),
+                    MusicVisualizer(
+  state: isConnected ? transportState : TransportState.stop,
+  disabled: !isConnected,
+),
 
                     const Spacer(),
                     TransportPanel(
-                        onPlay: () {
-                            setState(() => transportState = TransportState.play);
-                        },
-                        onPause: () {
-                            setState(() => transportState = TransportState.pause);
-                        },
-                        onStop: () {
-                            setState(() => transportState = TransportState.stop);
-                        },
-                        ),
+                      onPlay: () {
+                        bluetoothService.send(1);
+                        setState(() => transportState = TransportState.play);
+                      },
+
+                      onPause: () {
+                        bluetoothService.send(2);
+                        setState(() => transportState = TransportState.pause);
+                      },
+
+                      onStop: () {
+                        bluetoothService.send(3);
+                        setState(() => transportState = TransportState.stop);
+                      },
+                    ),
                     const Spacer(),
 
                     SwitchListTile(
