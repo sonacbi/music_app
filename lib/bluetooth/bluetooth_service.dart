@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-enum BluetoothStatus {
-  disconnected,
-  connecting,
-  connected,
-}
+
+enum BluetoothStatus { disconnected, connecting, connected }
+
 class BluetoothService {
   BluetoothConnection? _connection;
 
@@ -23,13 +21,12 @@ class BluetoothService {
     return await FlutterBluetoothSerial.instance.getBondedDevices();
   }
 
-  Future<void> connect(BluetoothDevice device) async {
+  Future<bool> connect(BluetoothDevice device) async {
     _status = BluetoothStatus.connecting;
     _statusController.add(_status);
 
     try {
-      _connection =
-          await BluetoothConnection.toAddress(device.address);
+      _connection = await BluetoothConnection.toAddress(device.address);
 
       _status = BluetoothStatus.connected;
       _statusController.add(_status);
@@ -38,10 +35,14 @@ class BluetoothService {
         print("RX: $data");
       });
 
+      return true; // 성공
     } catch (e) {
       _status = BluetoothStatus.disconnected;
       _statusController.add(_status);
+
       print("CONNECT ERROR: $e");
+
+      return false; // 실패
     }
   }
 

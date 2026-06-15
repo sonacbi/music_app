@@ -34,8 +34,8 @@ class _ControlScreenState extends State<ControlScreen>
   bool gamepadActive = false;
 
   bool get isConnected =>
-    bluetoothService.currentStatus == BluetoothStatus.connected;
-    
+      bluetoothService.currentStatus == BluetoothStatus.connected;
+
   @override
   void initState() {
     super.initState();
@@ -85,11 +85,15 @@ class _ControlScreenState extends State<ControlScreen>
         return DeviceSelectorPopup(
           devices: devices,
           onSelect: (device) async {
-            await bluetoothService.connect(device);
+            final success = await bluetoothService.connect(device);
 
-            setState(() {
-              debugMode = true;
-            });
+            if (success) {
+              setState(() {
+                debugMode = true;
+              });
+            }
+
+            return success;
           },
         );
       },
@@ -166,9 +170,9 @@ class _ControlScreenState extends State<ControlScreen>
                     const Spacer(),
 
                     MusicVisualizer(
-  state: isConnected ? transportState : TransportState.stop,
-  disabled: !isConnected,
-),
+                      state: isConnected ? transportState : TransportState.stop,
+                      disabled: !isConnected,
+                    ),
 
                     const Spacer(),
                     TransportPanel(

@@ -3,7 +3,7 @@ import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 class DeviceSelectorPopup extends StatelessWidget {
   final List<BluetoothDevice> devices;
-  final Function(BluetoothDevice) onSelect;
+  final Future<bool> Function(BluetoothDevice) onSelect;
 
   const DeviceSelectorPopup({
     super.key,
@@ -52,7 +52,7 @@ class DeviceSelectorPopup extends StatelessWidget {
                               Text(
                                 "Connecting...",
                                 style: TextStyle(color: Colors.white),
-                              )
+                              ),
                             ],
                           ),
                         );
@@ -61,16 +61,19 @@ class DeviceSelectorPopup extends StatelessWidget {
 
                     await Future.delayed(const Duration(milliseconds: 800));
 
+                    final success = await onSelect(d);
+
                     Navigator.pop(context); // dialog
                     Navigator.pop(context); // popup
 
-                    onSelect(d);
-
-                    // 성공 애니메이션
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Connected Successfully"),
-                        backgroundColor: Colors.green,
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? "Connected Successfully"
+                              : "Connection Failed",
+                        ),
+                        backgroundColor: success ? Colors.green : Colors.red,
                       ),
                     );
                   },
